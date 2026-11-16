@@ -865,10 +865,11 @@ function prodsDisp(){ return (D.productos||[]).filter(p=>p.con in st.sel && S(p.
 function prodsElegidos(){ return prodsDisp().filter(p=>st.prods[p.id]); }
 function prodsTotal(){ return prodsElegidos().reduce((a,p)=>a+p.precio,0); }
 function prodOferta(p){ const on=!!st.prods[p.id]; return `<div class="pofer pof-${esc(p.id)}${on?' on':''}"><span class="pimg pimg-${esc(p.id)}" role="img" aria-label="${esc(p.nombre)}"></span><div class="pt"><span class="pk">\u2728 Ideal con tu ${esc(p.conTxt)}</span><b>${esc(p.nombre)} \u00b7 ${fmt$(p.precio)}</b><p>${esc(p.texto)}</p><button type="button" class="pb" data-prod="${esc(p.id)}" aria-pressed="${on}">${on?'\u2713 Agregado \u00b7 lo pag\u00e1s en el local':'+ Sumarlo a mi turno'}</button></div></div>`; }
+function prodEnPago(){ return st.pago==='total' && !conAmiga() && st.q && st.q.total && st.q.total.sena>0 ? prodsTotal() : 0; }
 function prodTxtCorto(){ return prodsElegidos().map(p=>p.nombre+' ('+fmt$(p.precio)+')').join(' y '); }
-function prodPagoHTML(){ const L=prodsElegidos(); return L.length?`<div class="prodpago"><span class="pimg pimg-${esc(L[0].id)}" aria-hidden="true"></span><div><b>\ud83d\udecd\ufe0f ${esc(L.map(p=>p.nombre).join(' + '))} \u00b7 ${fmt$(prodsTotal())}</b><small>Te lo llev\u00e1s el d\u00eda del turno y lo pag\u00e1s en el local. \u00a1Tus ${L.some(p=>p.id==='poslash')?'pesta\u00f1as':'cejas'} te lo van a agradecer! \ud83d\udc9c</small></div></div>`:''; }
-function prodFila(){ return prodsTotal()?`<div class="row"><span>\ud83d\udecd\ufe0f ${esc(prodsElegidos().map(p=>p.nombre).join(' + '))} (en el local)</span><span>${fmt$(prodsTotal())}</span></div>`:''; }
-function prodLinea(){ const L=prodsElegidos(); return L.length?`<div class="prodline">\ud83d\udecd\ufe0f Retir\u00e1s en el local: <b>${esc(L.map(p=>p.nombre).join(' y '))}</b> \u00b7 ${fmt$(prodsTotal())}</div>`:''; }
+function prodPagoHTML(){ const L=prodsElegidos(); return L.length?`<div class="prodpago"><span class="pimg pimg-${esc(L[0].id)}" aria-hidden="true"></span><div><b>\ud83d\udecd\ufe0f ${esc(L.map(p=>p.nombre).join(' + '))} \u00b7 ${fmt$(prodsTotal())}</b><small>${prodEnPago()?'Va incluido en tu transferencia y te lo llev\u00e1s el d\u00eda del turno.':'Te lo llev\u00e1s el d\u00eda del turno y lo pag\u00e1s en el local.'} \u00a1Tus ${L.some(p=>p.id==='poslash')?'pesta\u00f1as':'cejas'} te lo van a agradecer! \ud83d\udc9c</small></div></div>`:''; }
+function prodFila(){ return prodsTotal()?`<div class="row"><span>\ud83d\udecd\ufe0f ${esc(prodsElegidos().map(p=>p.nombre).join(' + '))} ${prodEnPago()?'(incluido en el pago)':'(en el local)'}</span><span>${fmt$(prodsTotal())}</span></div>`:''; }
+function prodLinea(){ const L=prodsElegidos(); return L.length?`<div class="prodline">\ud83d\udecd\ufe0f Retir\u00e1s en el local: <b>${esc(L.map(p=>p.nombre).join(' y '))}</b> \u00b7 ${prodEnPago()?'ya est\u00e1 pago':fmt$(prodsTotal())}</div>`:''; }
 const price = s => s.usd ? 'USD '+s.precio : fmt$(s.precio);
 const usd2 = v => 'USD ' + (Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ','));
 const sena = s => D.senaPct>0 ? (s.usd ? usd2(s.precio*D.senaPct/100) : fmt$(Math.round(s.precio*D.senaPct/100))) : (s.usd ? 'USD '+s.sena : fmt$(s.sena));
@@ -1139,7 +1140,7 @@ function resumenFilas(c){
       <div class="row"><span>Precio final</span><span><b>${fmt$(v.precio)}</b></span></div>`; }
   else h += `<div class="row"><span>Precio total</span><span>${fmt$(v.precio)}</span></div>`;
   if(v.regalo) h += `<div class="row disc"><span>Tarjeta regalo</span><span>\u2212 ${fmt$(v.regalo)}</span></div>`;
-  h += `<div class="row ${conAmiga()?'':'total'}"><span>${conAmiga()?'Tu se\u00f1a':st.pago==='total'?'A pagar ahora (total)':'Se\u00f1a a pagar ahora'}</span><span>${fmt$(v.sena)}</span></div>`;
+  h += `<div class="row ${conAmiga()?'':'total'}"><span>${conAmiga()?'Tu se\u00f1a':st.pago==='total'?'A pagar ahora (total'+(prodEnPago()?' + s\u00e9rum':'')+')':'Se\u00f1a a pagar ahora'}</span><span>${fmt$(v.sena+prodEnPago())}</span></div>`;
   if(v.saldoDia && (v.regalo || v.descuento)) h += `<div class="row"><span>Resto, el d\u00eda del turno</span><span>${fmt$(v.saldoDia)}</span></div>`;
   return h+prodFila();
 }
@@ -1502,7 +1503,7 @@ function paso4(){
   const cab = elegir
     ? `<h2>\u00bfCu\u00e1nto quer\u00e9s pagar ahora?</h2><p class="sub">${esc(c.n)} \u00b7 ${DIAS[fd.getDay()]} ${fd.getDate()} de ${MESL[fd.getMonth()]}, ${hhmm(st.time)} h</p>
       <div class="paysel">${op('sena', st.q.sena.regalo?'Se\u00f1a (con tu tarjeta regalo)':'Se\u00f1a del '+(D.senaPct||50)+' %', st.q.sena.saldoDia?'El resto ('+fmt$(st.q.sena.saldoDia)+')'+(prodsTotal()?' + '+prodTxtCorto():'')+' lo pag\u00e1s el d\u00eda del turno.':(prodsTotal()?'El d\u00eda del turno solo pag\u00e1s '+prodTxtCorto()+'.':'El d\u00eda del turno no pag\u00e1s nada.'), st.q.sena.sena, '')}
-      ${op('total', 'Todo el servicio', prodsTotal()?'El d\u00eda del turno solo pag\u00e1s '+prodTxtCorto()+'.':'El d\u00eda del turno no pag\u00e1s nada.', st.q.total.sena, 'Listo y olvidate')}</div>
+      ${op('total', prodsTotal()?'Todo el servicio + el s\u00e9rum':'Todo el servicio', prodsTotal()?'Incluye '+prodTxtCorto()+'. El d\u00eda del turno no pag\u00e1s nada.':'El d\u00eda del turno no pag\u00e1s nada.', st.q.total.sena + (st.q.total.sena>0?prodsTotal():0), 'Listo y olvidate')}</div>
       ${st.pago==='total'?`<p class="note" style="margin:-6px 0 14px">Si cancel\u00e1s con ${D.minHoras} h o m\u00e1s de anticipaci\u00f3n se te devuelve todo. Con menos, se retiene el ${D.retiene} % del servicio y se devuelve el resto.</p>`:''}
       <h3 style="margin-top:4px">\u00bfC\u00f3mo pag\u00e1s?</h3>`
     : elegirB ? `<h2>\u00bfCu\u00e1nto quieren pagar ahora?</h2><p class="sub">Vos: ${esc(c.n)} \u00b7 tu amiga: ${esc(bb.n)}</p>
@@ -1511,7 +1512,7 @@ function paso4(){
       <p class="note" style="margin:-6px 0 14px">${st.pago==='total'?`Tuyo ${fmt$(st.q.total.sena)} + de tu amiga ${fmt$(precioBn())}, en un solo pago. Si cancelan con ${D.minHoras} h o m\u00e1s se devuelve todo; con menos, se retiene el ${D.retiene} % de cada servicio.`:`Tu se\u00f1a ${fmt$(st.q.sena.sena)} + la de tu amiga ${fmt$(senaBn())}, en un solo pago.`}</p>
       <h3 style="margin-top:4px">\u00bfC\u00f3mo pag\u00e1s?</h3>`
     : conAmiga() ? `<h2>\u00bfC\u00f3mo pag\u00e1s las se\u00f1as?</h2><p class="sub">Tu se\u00f1a ${fmt$(senaYo())} + la de tu amiga ${fmt$(senaBn())} = <b>${fmt$(senaTot())}</b> en un solo pago.</p>`
-    : usaQ() ? `<h2>\u00bfC\u00f3mo pag\u00e1s?</h2><p class="sub">${st.pago==='total'?'Total':'Se\u00f1a'} de <b>${fmt$(qv().sena)}</b>.</p>`
+    : usaQ() ? `<h2>\u00bfC\u00f3mo pag\u00e1s?</h2><p class="sub">${st.pago==='total'?'Total':'Se\u00f1a'} de <b>${fmt$(qv().sena+prodEnPago())}</b>.</p>`
     : `<h2>\u00bfC\u00f3mo pag\u00e1s la se\u00f1a?</h2><p class="sub">Se\u00f1a de <b>${c.senaTxt}</b>${extra}.</p>`;
   app.innerHTML = `<button class="back" id="b-back">\u2190 Cambiar datos</button>`+stepsBar(4)+ribbonSx()+tarjetasMini()+(cab.indexOf('<h3 style="margin-top:4px">')>=0?cab.replace('<h3 style="margin-top:4px">',prodPagoHTML()+'<h3 style="margin-top:4px">'):cab+prodPagoHTML())+`
     <div class="methods">
@@ -1565,7 +1566,7 @@ function pasoTransferencia(){
   if (conAmiga()) {
     cuentas = `<div class="summary">${filas(D.banco, fmt$(senaTot()))}</div><p class="note" style="margin-top:-6px">Incluye ${st.pago==='total'?'tu servicio completo ('+fmt$(senaYo())+') y el de tu amiga ('+fmt$(pagoB())+')':'tu se\u00f1a ('+fmt$(senaYo())+') y la de tu amiga ('+fmt$(pagoB())+')'}.</p>`;
   } else if (usaQ()) {
-    cuentas = `<div class="summary">${filas(D.banco, fmt$(qv().sena))}</div>`;
+    cuentas = `<div class="summary">${filas(D.banco, fmt$(qv().sena+prodEnPago()))}</div>${prodEnPago()?`<p class="note" style="margin-top:-6px">Incluye tu servicio (${fmt$(qv().sena)}) y ${esc(prodTxtCorto())}.</p>`:''}`;
   } else if (c.usd && D.bancoUSD) {
     cuentas = `<h3>Opci\u00f3n 1 \u00b7 Transferencia en d\u00f3lares</h3><div class="summary">${filas(D.bancoUSD, c.senaTxt)}</div>
       <h3>Opci\u00f3n 2 \u00b7 Transferencia en pesos</h3><div class="summary">${filas(D.banco, fmt$(c.senaPesos))}</div>
